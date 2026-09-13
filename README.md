@@ -4,17 +4,17 @@ Go 编写的 STRM 媒体服务端，包含 Web 管理界面、文件浏览、媒
 
 本仓库发布 **Linux x64 / amd64 和 ARM64 / aarch64** 镜像：`ghcr.io/sd87671067/go-emby:latest`。镜像内包含编译后的 Go 二进制及嵌入式前端，不含 Go/Node 构建工具、项目源码、生产数据库或生产配置。
 
-**此版本保留授权校验。** 授权地址必须通过 `.env` 的 `LICENSE_SERVER_URL` 配置。免费模式允许授权码为空；关闭免费模式时需要有效授权码。客户端启动时验证，之后每 12 小时验证一次，模式切换及吊销将在下一次验证时生效；私有 CA 场景还需要授权管理员提供的 CA 证书。仓库不提供授权服务器、授权码或证书。授权未通过时业务接口返回 HTTP 402，健康检查通过不代表授权有效。
+**此版本保留授权校验。** `.env.example` 和 Compose 已默认配置授权地址 `https://tl.macacaaca.top`。免费模式允许授权码为空；关闭免费模式时需要有效授权码。客户端启动时验证，之后每 12 小时验证一次，模式切换及吊销将在下一次验证时生效；私有 CA 场景还需要授权管理员提供的 CA 证书。仓库不提供授权服务器、授权码或证书。授权未通过时业务接口返回 HTTP 402，健康检查通过不代表授权有效。
 目前免费 有好心人可以支付宝口令红包赞助我，TG私聊赞助https://t.me/macaembychannel?direct
 
 ## 快速部署
 
-准备 Linux x64 或 ARM64 主机、Docker Engine 和 Docker Compose v2，以及授权配置。首次部署需要先准备配置，后续启动/更新只需指定的一行命令。
+准备 Linux x64 或 ARM64 主机、Docker Engine 和 Docker Compose v2，以及两个自设密码（付费模式还需授权码）。首次部署需要先准备配置，后续启动/更新只需指定的一行命令。
 
 ```bash
 git clone https://github.com/sd87671067/go-emby.git
 cd go-emby
-cp .env.example .env
+[ -e .env ] || (umask 077; cp .env.example .env)
 chmod 600 .env
 mkdir -p media secrets
 # 分别执行两次，将结果填入下面对应的密码变量
@@ -22,6 +22,8 @@ openssl rand -hex 24
 openssl rand -hex 24
 nano .env
 ```
+
+详细中文说明见 [ENV_GUIDE.md](ENV_GUIDE.md)。授权地址、小雅地址 `http://172.18.0.1:5678` 和 NanShare 地址 `http://172.18.0.1:8115` 已预填，正常部署无需再改。Docker 拉取镜像本身不会在宿主机创建 `.env`，首次部署由上面的复制命令生成配置。
 
 在 `.env` 填写 `POSTGRES_PASSWORD`、`ADMIN_PASSWORD`、`LICENSE_KEY`（免费模式可留空）；将 `MEDIA_PATH` 设为主机上真实的媒体目录，或将 STRM/NFO/海报文件放入 `./media`。管理员密码至少 12 字符。数据库密码请使用上面生成的十六进制字符串，避免数据库 URL 中的特殊字符转义问题。授权码若含 `$`、`#` 等字符，在 `.env` 中用单引号包围整个值。
 
@@ -49,14 +51,14 @@ Compose 自动读取同目录 `.env`，仅将列出的应用变量注入容器�
 | `MEDIA_PATH` | 宿主机媒体目录，默认 `./media`；必须预先存在 |
 | `POSTGRES_PASSWORD` | PostgreSQL 密码，必填；已有数据库改密码需同步修改数据库角色密码 |
 | `ADMIN_PASSWORD` | 首次初始化管理员密码，至少 12 字符 |
-| `LICENSE_SERVER_URL` | 必填，使用部署者提供的 HTTPS 授权服务地址 |
+| `LICENSE_SERVER_URL` | 已预填 `https://tl.macacaaca.top`，通常无需修改 |
 | `LICENSE_KEY` | 授权码，运行时注入；免费模式可留空 |
 | `LICENSE_CA_FILE` | 可选的容器内 CA 文件路径，默认使用系统信任库；不允许跳过 TLS 校验 |
 | `PUBLIC_URL` | 客户端可访问的本服务完整 URL，用自己的域名填写 |
 | `PUBLIC_PLAYBACK_URL` | 可选的播放入口 URL，默认留空 |
 | `BOOTSTRAP_API_KEY` | 可选的首次初始化 API 密钥；自行生成，默认留空 |
-| `NANSHARE_URL` | 可选的 NanShare 服务地址，默认留空 |
-| `XIAOYA_URL` | 可选的小雅服务地址，默认留空 |
+| `NANSHARE_URL` | NanShare 服务地址，默认 `http://172.18.0.1:8115` |
+| `XIAOYA_URL` | 小雅服务地址，默认 `http://172.18.0.1:5678` |
 | `PROBE_PLAYBACK_URL` | 可选的后台媒体探测入口，默认留空 |
 
 主机机器标识只读挂载到 `/run/license-machine-id`，程序将其哈希后用于授权设备绑定，不写入镜像或仓库。迁移到新主机可能需要重新授权。直接运行二进制时可使用 `LICENSE_MACHINE_ID_FILE` 指定该文件。
