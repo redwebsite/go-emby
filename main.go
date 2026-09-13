@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go-emby/internal/licensesdk"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -276,6 +277,16 @@ func (a *App) serverInfo() M {
 	return M{"Id": a.serverID, "ServerName": a.displayName(), "Version": "4.8.0.80", "OperatingSystem": "Linux", "ProductName": "Go Emby STRM", "LocalAddress": os.Getenv("PUBLIC_URL"), "WanAddress": os.Getenv("PUBLIC_URL"), "LocalAddresses": []string{os.Getenv("PUBLIC_URL")}, "RemoteAddresses": []string{os.Getenv("PUBLIC_URL")}, "StartupWizardCompleted": true, "SupportsLibraryMonitor": false, "HasUpdateAvailable": false}
 }
 func (a *App) serve(w http.ResponseWriter, r *http.Request) {
+	if isVideoRequest(r.URL.Path) || strings.Contains(strings.ToLower(r.URL.Path), "/playbackinfo") {
+		tracked := &errorResponse{ResponseWriter: w, status: 200}
+		w = tracked
+		started := time.Now()
+		defer func() {
+			if tracked.status >= 400 {
+				a.recordError(r, "播放请求错误", fmt.Sprintf("%s %s · HTTP %d · 耗时 %s · %s", r.Method, r.URL.Path, tracked.status, time.Since(started), tracked.detail.String()))
+			}
+		}()
+	}
 	if client := strings.ToLower(r.UserAgent()); strings.Contains(client, "lenna") || strings.Contains(client, "infuse") || strings.Contains(client, "senplayer") {
 		tracked := &clientResponse{ResponseWriter: w, status: 200}
 		w = tracked
@@ -1290,6 +1301,7 @@ func main() {
 	}
 	licenseCtx, licenseCancel := context.WithCancel(context.Background())
 	defer licenseCancel()
+	licenseClient.OnError = func(detail string) { a.recordError(nil, "授权验证错误", detail) }
 	licenseClient.Refresh(licenseCtx)
 	go licenseClient.Run(licenseCtx)
 	go a.reclaimIdleMemory()

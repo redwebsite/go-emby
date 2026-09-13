@@ -70,6 +70,38 @@ func TestRejectMalformedAndOversizeLease(t *testing.T) {
 	}
 }
 
+func TestFreeModeEmptyCodeAndLongLease(t *testing.T) {
+	free := true
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Error(err)
+		}
+		if payload["license"] != "" || payload["lease_seconds"] != float64(MaxLeaseSeconds) {
+			t.Errorf("unexpected payload: %#v", payload)
+		}
+		if free {
+			w.Write([]byte(`{"valid":true,"mode":"free","lease_seconds":43260}`))
+		} else {
+			w.Write([]byte(`{"valid":false,"reason":"invalid_license"}`))
+		}
+	}))
+	defer s.Close()
+	c := &Client{http: s.Client(), url: s.URL}
+	c.Refresh(context.Background())
+	if ok, mode, _ := c.Status(); !ok || mode != "free" {
+		t.Fatal("empty code rejected in free mode")
+	}
+	if time.Until(c.until) < RefreshInterval {
+		t.Fatal("lease expires before scheduled verification")
+	}
+	free = false
+	c.Refresh(context.Background())
+	if ok, _, _ := c.Status(); ok {
+		t.Fatal("empty code accepted after free mode disabled")
+	}
+}
+
 func TestEnvironmentConfiguration(t *testing.T) {
 	machine := filepath.Join(t.TempDir(), "machine-id")
 	if err := os.WriteFile(machine, []byte("0123456789abcdef0123456789abcdef\n"), 0600); err != nil {
@@ -93,11 +125,11 @@ func TestEnvironmentConfiguration(t *testing.T) {
 		if r.URL.Path != "/v1/check" {
 			t.Error("unexpected license path")
 		}
-		var body map[string]string
+		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		if body["license"] != "test-only-license" || len(body["device"]) != 64 {
+		if body["license"] != "test-only-license" || len(body["device"].(string)) != 64 {
 			t.Error("invalid authorization payload")
 		}
 		w.Write([]byte(`{"valid":true,"lease_seconds":60}`))

@@ -28,6 +28,7 @@ func (a *App) gatewayFor(targetURL string) http.Handler {
 		return nil
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
+		a.recordError(r, "NanShare 播放错误", "上游连接或响应失败: "+safeProxyError(e))
 		fail(w, 502, "直链解析失败；已禁止服务器中转视频，请检查 NanShare 与视频源")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,10 @@ func (a *App) resolveNanShare(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	}
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) { fail(w, 502, "NanShare 直链解析失败") }
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
+		a.recordError(r, "NanShare 播放错误", "上游连接或响应失败: "+safeProxyError(e))
+		fail(w, 502, "NanShare 直链解析失败")
+	}
 	guard := proxy.ModifyResponse
 	proxy.ModifyResponse = func(res *http.Response) error {
 		if err := guard(res); err != nil {
@@ -134,3 +138,11 @@ var cdnLinks = struct {
 	sync.Mutex
 	entries map[string]cdnLink
 }{entries: map[string]cdnLink{}}
+
+func safeProxyError(err error) string {
+	var u *url.Error
+	if errors.As(err, &u) {
+		return u.Op + ": " + u.Err.Error()
+	}
+	return err.Error()
+}

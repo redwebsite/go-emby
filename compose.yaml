@@ -20,7 +20,6 @@ services:
 
   go-emby:
     image: ghcr.io/sd87671067/go-emby:${IMAGE_TAG:-latest}
-    platform: linux/amd64
     restart: unless-stopped
     depends_on:
       postgres:
@@ -30,7 +29,7 @@ services:
     environment:
       DATABASE_URL: postgres://emby:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/emby?sslmode=disable
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-      LICENSE_KEY: ${LICENSE_KEY:?Set LICENSE_KEY in .env}
+      LICENSE_KEY: ${LICENSE_KEY:-}
       LICENSE_SERVER_URL: ${LICENSE_SERVER_URL:?Set LICENSE_SERVER_URL in .env}
       LICENSE_CA_FILE: ${LICENSE_CA_FILE:-}
       PUBLIC_URL: ${PUBLIC_URL:-}

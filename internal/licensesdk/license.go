@@ -20,7 +20,11 @@ import (
 	"time"
 )
 
+const RefreshInterval = 12 * time.Hour
+const MaxLeaseSeconds = 43260
+
 type Client struct {
+	OnError           func(string)
 	mu                sync.RWMutex
 	http              *http.Client
 	url, code, device string
@@ -66,6 +70,9 @@ func NewFromEnv() (*Client, error) {
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}, MaxIdleConnsPerHost: 2, ResponseHeaderTimeout: 5 * time.Second}
 	endpoint := strings.TrimRight(strings.TrimSpace(os.Getenv("LICENSE_SERVER_URL")), "/")
+	if endpoint == "" {
+		return nil, fmt.Errorf("LICENSE_SERVER_URL is required")
+	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, fmt.Errorf("LICENSE_SERVER_URL must be an HTTPS URL without credentials, query or fragment")
@@ -74,27 +81,31 @@ func NewFromEnv() (*Client, error) {
 }
 
 func (c *Client) Refresh(ctx context.Context) {
-	payload, _ := json.Marshal(map[string]string{"license": c.code, "device": c.device})
+	payload, _ := json.Marshal(map[string]any{"license": c.code, "device": c.device, "lease_seconds": MaxLeaseSeconds})
 	started := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/v1/check", bytes.NewReader(payload))
 	if err != nil {
-		c.networkError()
+		c.networkError("request construction: " + err.Error())
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	res, err := c.http.Do(req)
 	if err != nil {
-		c.networkError()
+		detail := err.Error()
+		if u, ok := err.(*url.Error); ok {
+			detail = u.Err.Error()
+		}
+		c.networkError("HTTPS connection failed: " + detail)
 		return
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		c.networkError()
+		c.networkError(fmt.Sprintf("HTTP status %d", res.StatusCode))
 		return
 	}
 	var result response
 	if err = json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&result); err != nil {
-		c.networkError()
+		c.networkError("invalid JSON response: " + err.Error())
 		return
 	}
 	c.mu.Lock()
@@ -106,18 +117,27 @@ func (c *Client) Refresh(ctx context.Context) {
 		if c.reason == "" {
 			c.reason = "denied"
 		}
+		c.reportError("authorization denied: " + c.reason)
 		return
 	}
-	if result.Lease <= 0 || result.Lease > 120 {
+	if result.Lease <= 0 || result.Lease > MaxLeaseSeconds {
 		c.until = time.Time{}
 		c.reason = "invalid_lease"
+		c.reportError(c.reason)
 		return
 	}
 	c.until = started.Add(time.Duration(result.Lease) * time.Second)
 	c.reason = ""
 	c.mode = result.Mode
 }
-func (c *Client) networkError() {
+func (c *Client) reportError(detail string) {
+	log.Printf("license error: %s", detail)
+	if c.OnError != nil {
+		c.OnError(detail)
+	}
+}
+func (c *Client) networkError(detail string) {
+	c.reportError(detail)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !time.Now().Before(c.until) {
@@ -137,7 +157,7 @@ func (c *Client) Status() (bool, string, string) {
 	return false, c.mode, reason
 }
 func (c *Client) Run(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(RefreshInterval)
 	defer ticker.Stop()
 	previous := ""
 	for {
