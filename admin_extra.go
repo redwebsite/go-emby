@@ -48,8 +48,8 @@ func (a *App) extraAdmin(w http.ResponseWriter, r *http.Request, p string) {
 		}
 		path = mediaPath(path)
 		real, e := filepath.EvalSymlinks(path)
-		if e != nil || !(real == "/media" || strings.HasPrefix(real, "/media/")) {
-			fail(w, 400, "目录必须位于 /vol1/1000/strm")
+		if e != nil || !allowedMediaPath(real) {
+			fail(w, 400, "目录必须位于已配置的媒体挂载目录")
 			return
 		}
 		f, e := os.Open(real)

@@ -127,7 +127,7 @@ func (a *App) indexMetadataGeneration(lib, generation string, jobs ...string) er
 }
 func safeImage(p string) string {
 	real, e := filepath.EvalSymlinks(p)
-	if e != nil || !strings.HasPrefix(real, "/media/") {
+	if e != nil || !allowedMediaPath(real) {
 		return ""
 	}
 	st, e := os.Stat(real)
@@ -184,6 +184,11 @@ func (a *App) imagePath(i, kind string) string {
 	}
 	if e != nil {
 		return ""
+	}
+	if x.Kind == "Episode" && (kind == "Primary" || kind == "Thumb") {
+		if p := episodeThumb(x); p != "" {
+			return p
+		}
 	}
 	if kind == "Primary" {
 		if x.Kind == "Series" && x.Poster == "" {
@@ -253,6 +258,9 @@ func (a *App) decorateImages(x Item, m M) {
 	m["ImageTags"] = tags
 	m["BackdropImageTags"] = back
 	m["PrimaryImageAspectRatio"] = 2.0 / 3
+	if x.Kind == "Episode" {
+		m["PrimaryImageAspectRatio"] = 16.0 / 9
+	}
 	m["DateCreated"] = time.Unix(0, x.Mtime).UTC().Format(time.RFC3339)
 	if x.Kind == "Series" || x.Kind == "Season" {
 		var n int
@@ -796,4 +804,14 @@ func (a *App) markActorImageFailure(person, path string) {
 	if strings.HasPrefix(person, "person-") {
 		a.db.Exec("INSERT INTO actor_image_failures(person,path,expires) VALUES(?,?,?) ON CONFLICT(person) DO UPDATE SET path=excluded.path,expires=excluded.expires", person, path, time.Now().Add(time.Hour).Unix())
 	}
+}
+
+func episodeThumb(x Item) string {
+	base := strings.TrimSuffix(x.Path, filepath.Ext(x.Path))
+	for _, suffix := range []string{"-thumb.jpg", ".jpg", ".jpeg", ".png", ".webp"} {
+		if p := safeImage(base + suffix); p != "" {
+			return p
+		}
+	}
+	return ""
 }

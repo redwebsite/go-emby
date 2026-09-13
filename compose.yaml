@@ -41,6 +41,7 @@ services:
       LISTEN: :8097
       MEDIA_INFO_ROOT: /app/data
       FILE_MANAGER_ROOT: /media
+      MEDIA_ROOTS: ${MEDIA_ROOTS:-/media}
     volumes:
       - app-data:/app/data
       - app-backups:/app/backups

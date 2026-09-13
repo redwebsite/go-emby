@@ -66,7 +66,7 @@ func readSidecar(x Item) sidecar {
 	}
 	for _, p := range paths {
 		real, e := filepath.EvalSymlinks(p)
-		if e != nil || !strings.HasPrefix(real, "/media/") {
+		if e != nil || !allowedMediaPath(real) {
 			continue
 		}
 		f, e := os.Open(real)

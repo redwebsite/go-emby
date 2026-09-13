@@ -20,7 +20,7 @@ for name in filter(None, files):
     p = root / name
     if not p.is_file():
         continue
-    if (p.name.startswith('.env') and p.name != '.env.example') or any(
+    if (p.name.startswith('.env') and p.name != '.env.example') or p.name.endswith('.env') or 'credentials' in p.name.lower() or '.key.' in p.name or any(
         part in {'secrets', 'data', 'backups', 'node_modules', '.cache'} for part in p.parts
     ) or p.suffix in {'.key', '.pem', '.crt', '.p12', '.pfx', '.dump', '.db', '.log', '.bak', '.zip', '.gz'}:
         problems.append((name, 'excluded file type/path'))

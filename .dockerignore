@@ -9,6 +9,8 @@
 !internal/licensesdk/*.go
 !web/
 !web/index.html
+!web/strings/
+!web/strings/*.json
 !file-ui/
 !file-ui/package.json
 !file-ui/package-lock.json

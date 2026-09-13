@@ -30,3 +30,11 @@ go-emby-amd64
 go-emby-arm64
 credentials*
 *private*
+
+# Deployment-specific credentials and repair snapshots
+.*.env
+*credentials*
+backup*/
+repair*/
+*.old
+*.orig

@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+const DefaultServer = "https://tl.macacaaca.top"
 const RefreshInterval = 12 * time.Hour
 const MaxLeaseSeconds = 43260
 
@@ -71,7 +72,7 @@ func NewFromEnv() (*Client, error) {
 	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}, MaxIdleConnsPerHost: 2, ResponseHeaderTimeout: 5 * time.Second}
 	endpoint := strings.TrimRight(strings.TrimSpace(os.Getenv("LICENSE_SERVER_URL")), "/")
 	if endpoint == "" {
-		return nil, fmt.Errorf("LICENSE_SERVER_URL is required")
+		endpoint = DefaultServer
 	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {

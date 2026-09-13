@@ -22,8 +22,8 @@ func (a *App) createLibrary(w http.ResponseWriter, name, kind, path string, path
 	validated := []string{}
 	for _, p := range paths {
 		real, e := filepath.EvalSymlinks(mediaPath(p))
-		if e != nil || !(real == "/media" || strings.HasPrefix(real, "/media/")) {
-			fail(w, 400, "请选择 /media 下的现有目录")
+		if e != nil || !allowedMediaPath(real) {
+			fail(w, 400, "请选择已挂载媒体目录下的现有目录")
 			return
 		}
 		fi, e := os.Stat(real)

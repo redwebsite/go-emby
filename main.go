@@ -242,8 +242,8 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	}
 	a.attempts[ip] = append(recent, time.Now())
 	a.loginMu.Unlock()
-	var b struct{ Username, Pw string }
-	if !body(w, r, &b) {
+	var b loginCredentials
+	if !loginBody(w, r, &b) {
 		return
 	}
 	var u User
@@ -344,6 +344,34 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 		a.login(w, r)
 		return
 	}
+	if strings.HasPrefix(l, "/web/strings/") {
+		if r.Method != "GET" && r.Method != "HEAD" {
+			fail(w, 405, "GET or HEAD required")
+			return
+		}
+		name := strings.TrimPrefix(l, "/web/strings/")
+		if strings.Contains(name, "/") || !strings.HasSuffix(name, ".json") {
+			fail(w, 404, "Resource not found")
+			return
+		}
+		entries, _ := assets.ReadDir("web/strings")
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.EqualFold(entry.Name(), name) {
+				b, err := assets.ReadFile("web/strings/" + entry.Name())
+				if err != nil {
+					fail(w, 404, "Resource not found")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				if r.Method == "GET" {
+					w.Write(b)
+				}
+				return
+			}
+		}
+		fail(w, 404, "Resource not found")
+		return
+	}
 	if l == "/web/manifest.json" && (r.Method == "GET" || r.Method == "HEAD") {
 		respond(w, M{"name": a.displayName(), "short_name": "Emby", "start_url": "index.html", "display": "standalone", "icons": []M{}})
 		return
@@ -383,6 +411,10 @@ func (a *App) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.admin(w, r, u, l)
+		return
+	}
+	if l == "/system/endpoint" {
+		serveEndpoint(w, r)
 		return
 	}
 	if l == "/system/info" {

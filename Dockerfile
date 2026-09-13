@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY *.go ./
 COPY internal/ ./internal/
 COPY web/index.html ./web/index.html
+COPY web/strings/ ./web/strings/
 COPY --from=frontend /web/files ./web/files
 ARG TARGETOS
 ARG TARGETARCH

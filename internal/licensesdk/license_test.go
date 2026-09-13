@@ -110,11 +110,16 @@ func TestEnvironmentConfiguration(t *testing.T) {
 	t.Setenv("LICENSE_MACHINE_ID_FILE", machine)
 	t.Setenv("LICENSE_CA_FILE", "")
 	t.Setenv("LICENSE_KEY", "test-only-license")
-	for _, endpoint := range []string{"", "http://license.example", "https://", "https://license.example?secret=value"} {
+	for _, endpoint := range []string{"http://license.example", "https://", "https://license.example?secret=value"} {
 		t.Setenv("LICENSE_SERVER_URL", endpoint)
 		if _, err := NewFromEnv(); err == nil {
 			t.Fatal("invalid endpoint accepted")
 		}
+	}
+	t.Setenv("LICENSE_SERVER_URL", "")
+	defaultClient, err := NewFromEnv()
+	if err != nil || defaultClient.url != DefaultServer {
+		t.Fatal("default authorization endpoint not configured")
 	}
 	credentialsURL := &url.URL{Scheme: "https", Host: "license.example", User: url.UserPassword("user", "pass")}
 	t.Setenv("LICENSE_SERVER_URL", credentialsURL.String())

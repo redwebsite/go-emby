@@ -250,6 +250,12 @@ func (a *App) listDTO(x Item, r *http.Request, u User) M {
 	if x.Poster != "" {
 		m["ImageTags"] = M{"Primary": a.listImageTag(x)}
 	}
+	if x.Kind == "Episode" {
+		m["PrimaryImageAspectRatio"] = 16.0 / 9
+		if path := episodeThumb(x); path != "" {
+			m["ImageTags"].(M)["Thumb"] = a.imageTag(x.ID, "Thumb", path)
+		}
+	}
 	if u.API {
 		m["Path"] = x.Path
 		if x.URL != "" && strings.Contains(strings.ToLower(q(r, "Fields")), "mediasources") {
