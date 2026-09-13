@@ -4,8 +4,8 @@ Go 编写的 STRM 媒体服务端，包含 Web 管理界面、文件浏览、媒
 
 本仓库发布 **Linux x64 / amd64 和 ARM64 / aarch64** 镜像：`ghcr.io/sd87671067/go-emby:latest`。镜像内包含编译后的 Go 二进制及嵌入式前端，不含 Go/Node 构建工具、项目源码、生产数据库或生产配置。
 
-**此版本保留授权校验。** `.env.example` 和 Compose 已默认配置授权地址 `https://tl.macacaaca.top`。当前免费开放，仓库不提供授权服务器、授权码或证书。授权未通过时业务接口返回 HTTP 402，健康检查通过不代表授权有效。
-目前免费 有好心人可以支付宝口令红包赞助我，TG私聊赞助https://t.me/macaembychannel?direct
+**此版本保留授权校验。** `.env.example` 和 Compose 已默认配置授权地址 `https://tl.macacaaca.top`。当前免费开放，为爱发电
+ 有好心人可以支付宝口令红包赞助我，TG私聊赞助https://t.me/macaembychannel?direct
 
 ## 快速部署
 
