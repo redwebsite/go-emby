@@ -37,6 +37,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Prepare media fixtures directory
+        run: sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0755 /media
       - run: go test -count=1 -timeout=15m ./...
         env:
           TEST_DATABASE_URL: postgres://emby:ci-test-password@localhost:5432/emby_test?sslmode=disable
