@@ -1,0 +1,76 @@
+name: go-emby
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: emby
+      POSTGRES_USER: emby
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emby -d emby"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  go-emby:
+    image: ghcr.io/sd87671067/go-emby:${IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8097}:8097"
+    environment:
+      DATABASE_URL: postgres://emby:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/emby?sslmode=disable
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      LICENSE_KEY: ${LICENSE_KEY:?Set LICENSE_KEY in .env}
+      LICENSE_SERVER_URL: ${LICENSE_SERVER_URL:?Set LICENSE_SERVER_URL in .env}
+      LICENSE_CA_FILE: ${LICENSE_CA_FILE:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      PUBLIC_PLAYBACK_URL: ${PUBLIC_PLAYBACK_URL:-}
+      BOOTSTRAP_API_KEY: ${BOOTSTRAP_API_KEY:-}
+      NANSHARE_URL: ${NANSHARE_URL:-}
+      XIAOYA_URL: ${XIAOYA_URL:-}
+      PROBE_PLAYBACK_URL: ${PROBE_PLAYBACK_URL:-}
+      LISTEN: :8097
+      MEDIA_INFO_ROOT: /app/data
+      FILE_MANAGER_ROOT: /media
+    volumes:
+      - app-data:/app/data
+      - app-backups:/app/backups
+      - type: bind
+        source: ${MEDIA_PATH:-./media}
+        target: /media
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/machine-id
+        target: /run/license-machine-id
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+        bind:
+          create_host_path: false
+    stop_grace_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  postgres-data:
+  app-data:
+  app-backups:

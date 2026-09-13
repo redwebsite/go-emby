@@ -1,0 +1,21 @@
+# Only build inputs are admitted; secrets and local runtime data stay outside.
+**
+!Dockerfile
+!go.mod
+!go.sum
+!*.go
+!internal/
+!internal/licensesdk/
+!internal/licensesdk/*.go
+!web/
+!web/index.html
+!file-ui/
+!file-ui/package.json
+!file-ui/package-lock.json
+!file-ui/index.html
+!file-ui/tsconfig.json
+!file-ui/tailwind.config.js
+!file-ui/postcss.config.js
+!file-ui/vite.config.ts
+!file-ui/src/
+!file-ui/src/**
