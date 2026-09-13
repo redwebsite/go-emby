@@ -1,5 +1,5 @@
 # go-emby
-
+TG反馈交流群 https://t.me/+mocElSRiXPM3NWQ1
 Go 编写的 STRM 媒体服务端，包含 Web 管理界面、文件浏览、媒体库扫描、NFO/海报读取和 Emby 兼容接口。播放采用跳转方式，客户端直连媒体源；不提供视频转码。后台媒体探测使用 FFmpeg，可能读取部分媒体内容。
 
 本仓库发布 **Linux x64 / amd64** 镜像：`ghcr.io/sd87671067/go-emby:latest`。镜像内包含编译后的 Go 二进制及嵌入式前端，不含 Go/Node 构建工具、项目源码、生产数据库或生产配置。
