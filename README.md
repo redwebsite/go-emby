@@ -7,6 +7,7 @@ Go 编写的 STRM 媒体服务端，包含 Web 管理界面、文件浏览、媒
 
 **此版本保留授权校验。** `.env.example` 和 Compose 已默认配置授权地址 `https://tl.macacaaca.top`。当前免费开放，为爱发电
  有好心人可以支付宝口令红包赞助我，TG私聊赞助https://t.me/macaembychannel?direct
+ 赞助可以帮我加快更新速度
 
 ## 快速部署
 
