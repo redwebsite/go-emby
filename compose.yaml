@@ -38,7 +38,7 @@ services:
   # ==========================================================
 
   go-emby:
-    image: ghcr.io/sd87671067/go-emby:${IMAGE_TAG:-latest}
+    image: macaemby/go-emby:${IMAGE_TAG:-latest}
     restart: unless-stopped
 
     depends_on:
