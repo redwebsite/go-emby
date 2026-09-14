@@ -38,3 +38,8 @@ backup*/
 repair*/
 *.old
 *.orig
+secrets/*
+!secrets/.gitkeep
+*.sqlite
+*.sqlite3
+postgres-data/
