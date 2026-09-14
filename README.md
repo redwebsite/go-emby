@@ -11,6 +11,12 @@ Go 编写的 STRM 媒体服务端，包含 Web 管理界面、文件浏览、媒
 
 ## 快速部署
 
+一键启动命令
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sd87671067/go-emby/main/install.sh
+```
+
 准备 Linux x64 或 ARM64 主机、Docker Engine 和 Docker Compose v2，以及两个自设密码（付费模式还需授权码）。首次部署需要先准备配置，后续启动/更新只需指定的一行命令。
 
 ```bash
