@@ -18,3 +18,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run ui-v2-final.yml --repo "${{ github.repository }}" --ref main
+
+# trigger: 2026-09-15-final
