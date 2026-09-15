@@ -1,11 +1,11 @@
-name: Apply final iOS cinema UI
+name: Apply iOS Emby UI v3
 
 on:
   push:
     paths:
       - ".github/workflows/ui-v2-final.yml"
-      - ".github/ui/ios-cinema.css"
-      - ".github/ui/ios-cinema.js"
+      - ".github/ui/ios-cinema-v3.css"
+      - ".github/ui/ios-cinema-v3.js"
   workflow_dispatch:
 
 permissions:
@@ -18,25 +18,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Apply final UI
+      - name: Replace previous injected theme with V3
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p=Path('web/index.html')
           s=p.read_text()
-          marker='/* ios-cinema-final */'
-          if marker not in s:
-              css=Path('.github/ui/ios-cinema.css').read_text()
-              js=Path('.github/ui/ios-cinema.js').read_text()
-              s=s.replace('</head>', '<style>\n'+css+'\n</style></head>', 1)
-              s=s.replace('</body>', '<script>\n'+js+'\n</script></body>', 1)
-              p.write_text(s)
+          # Remove our previous injected V2 theme/style and switcher only; keep app/backend-facing DOM and logic untouched.
+          s=re.sub(r'<style>\s*/\* ios-cinema-final \*/.*?</style>', '', s, flags=re.S)
+          s=re.sub(r'<script>\s*/\* ios-cinema-theme-switch \*/.*?</script>', '', s, flags=re.S)
+          s=re.sub(r'<style>\s*/\* ios-cinema-v3 \*/.*?</style>', '', s, flags=re.S)
+          s=re.sub(r'<script>\s*/\* ios-cinema-v3-js \*/.*?</script>', '', s, flags=re.S)
+          css=Path('.github/ui/ios-cinema-v3.css').read_text()
+          js=Path('.github/ui/ios-cinema-v3.js').read_text()
+          s=s.replace('</head>', '<style>\n'+css+'\n</style>\n</head>', 1)
+          s=s.replace('</body>', '<script>\n'+js+'\n</script>\n</body>', 1)
+          p.write_text(s)
           PY
-      - name: Commit UI
+      - name: Commit V3
         run: |
           if git diff --quiet -- web/index.html; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add web/index.html
-          git commit -m "Apply final iOS cinema UI"
+          git commit -m "Apply iOS Emby UI v3"
           git push origin HEAD:main
