@@ -16,7 +16,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}
 
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data
 
     healthcheck:
       test:
@@ -88,9 +88,9 @@ services:
       # go-emby 自身数据
       # ======================================================
 
-      - app-data:/app/data
+      - ./app-data:/app/data
 
-      - app-backups:/app/backups
+      - ./app-backups:/app/backups
 
 
       # ======================================================
@@ -198,16 +198,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-
-# ============================================================
-# Docker 数据卷
-# ============================================================
-
-volumes:
-
-  postgres-data:
-
-  app-data:
-
-  app-backups:
