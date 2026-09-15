@@ -104,3 +104,5 @@ jobs:
           echo "Synced successfully:"
           echo "  macaemby/go-emby:${VERSION}"
           echo "  macaemby/go-emby:latest"
+
+# manual sync trigger 2026-09-15
