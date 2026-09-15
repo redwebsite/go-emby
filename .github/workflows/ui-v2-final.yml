@@ -1,11 +1,11 @@
-name: Apply iOS Emby UI v3
+name: Apply structural iOS cinema V4
 
 on:
   push:
     paths:
       - ".github/workflows/ui-v2-final.yml"
-      - ".github/ui/ios-cinema-v3.css"
-      - ".github/ui/ios-cinema-v3.js"
+      - ".github/ui/ios-cinema-v4.css"
+      - ".github/ui/ios-cinema-v4.js"
   workflow_dispatch:
 
 permissions:
@@ -18,29 +18,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Replace previous injected theme with V3
+      - name: Apply structural V4 directly to web index
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           p=Path('web/index.html')
           s=p.read_text()
-          # Remove our previous injected V2 theme/style and switcher only; keep app/backend-facing DOM and logic untouched.
-          s=re.sub(r'<style>\s*/\* ios-cinema-final \*/.*?</style>', '', s, flags=re.S)
-          s=re.sub(r'<script>\s*/\* ios-cinema-theme-switch \*/.*?</script>', '', s, flags=re.S)
-          s=re.sub(r'<style>\s*/\* ios-cinema-v3 \*/.*?</style>', '', s, flags=re.S)
-          s=re.sub(r'<script>\s*/\* ios-cinema-v3-js \*/.*?</script>', '', s, flags=re.S)
-          css=Path('.github/ui/ios-cinema-v3.css').read_text()
-          js=Path('.github/ui/ios-cinema-v3.js').read_text()
-          s=s.replace('</head>', '<style>\n'+css+'\n</style>\n</head>', 1)
-          s=s.replace('</body>', '<script>\n'+js+'\n</script>\n</body>', 1)
+          # Remove only UI layers previously injected by these workflows.
+          for marker in ('ios-cinema-final','ios-cinema-v3','ios-cinema-v4'):
+              s=re.sub(r'<style>\s*/\* '+re.escape(marker)+r' \*/.*?</style>\s*','',s,flags=re.S)
+          for marker in ('ios-cinema-theme-switch','ios-cinema-v3-js','ios-cinema-v4-js'):
+              s=re.sub(r'<script>\s*/\* '+re.escape(marker)+r' \*/.*?</script>\s*','',s,flags=re.S)
+          css=Path('.github/ui/ios-cinema-v4.css').read_text()
+          js=Path('.github/ui/ios-cinema-v4.js').read_text()
+          s=s.replace('</head>','<style>\n'+css+'\n</style>\n</head>',1)
+          s=s.replace('</body>','<script>\n'+js+'\n</script>\n</body>',1)
           p.write_text(s)
           PY
-      - name: Commit V3
+      - name: Verify preserved app contracts
+        run: |
+          grep -q 'ios-cinema-v4' web/index.html
+          grep -q 'ios-cinema-v4-js' web/index.html
+          grep -q 'function login' web/index.html
+          grep -q 'id="app"' web/index.html
+          grep -q 'id="wall"' web/index.html
+          grep -q 'showLogs' web/index.html
+      - name: Commit V4 web index
         run: |
           if git diff --quiet -- web/index.html; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add web/index.html
-          git commit -m "Apply iOS Emby UI v3"
+          git commit -m "Apply structural iOS cinema V4"
           git push origin HEAD:main
