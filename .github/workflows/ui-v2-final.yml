@@ -53,3 +53,5 @@ dialog{background:rgba(10,14,20,.86)!important;color:var(--c-text)!important;bor
             git commit -m "Apply final iOS cinema UI"
             git push origin HEAD:main
           fi
+
+# trigger 2026-09-15T10:25Z
