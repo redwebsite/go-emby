@@ -1,0 +1,26 @@
+name: Apply iOS cinema UI v2
+
+on:
+  push:
+    paths:
+      - ".github/workflows/ui-v2-apply.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Apply v2 theme
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('web
