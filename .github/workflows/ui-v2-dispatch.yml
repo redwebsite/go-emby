@@ -1,0 +1,20 @@
+name: Dispatch final iOS cinema UI
+
+on:
+  push:
+    paths:
+      - ".github/workflows/ui-v2-dispatch.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch final UI workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ui-v2-final.yml --repo "${{ github.repository }}" --ref main
