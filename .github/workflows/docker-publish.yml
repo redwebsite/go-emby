@@ -23,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Skopeo
+      - name: Install Skopeo and jq
         run: |
           sudo apt-get update
-          sudo apt-get install -y skopeo
+          sudo apt-get install -y skopeo jq
 
       - name: Login to GHCR
         run: |
@@ -40,18 +40,51 @@ jobs:
             --username "${{ secrets.DOCKERHUB_USERNAME }}" \
             --password-stdin
 
-      - name: Wait for GHCR manifest
+      - name: Detect newest dated version and wait for matching latest
+        id: version
+        shell: bash
         run: |
-          for i in 1 2 3 4 5 6; do
-            if skopeo inspect --raw docker://ghcr.io/sd87671067/go-emby:latest >/dev/null 2>&1; then
-              exit 0
+          set -Eeuo pipefail
+
+          IMAGE="ghcr.io/sd87671067/go-emby"
+          VERSION=""
+
+          for i in $(seq 1 18); do
+            VERSION="$(
+              skopeo list-tags "docker://${IMAGE}" \
+                | jq -r '.Tags[]? | select(test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}-[0-9]{6}$"))' \
+                | sort \
+                | tail -n 1
+            )"
+
+            if [[ -n "${VERSION}" ]]; then
+              VERSION_DIGEST="$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE}:${VERSION}" 2>/dev/null || true)"
+              LATEST_DIGEST="$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE}:latest" 2>/dev/null || true)"
+
+              if [[ -n "${VERSION_DIGEST}" && "${VERSION_DIGEST}" == "${LATEST_DIGEST}" ]]; then
+                echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+                echo "Detected release version: ${VERSION}"
+                echo "Manifest digest: ${VERSION_DIGEST}"
+                exit 0
+              fi
             fi
+
+            echo "Waiting for GHCR latest and newest dated tag to point to the same manifest... (${i}/18)"
             sleep 10
           done
-          echo "GHCR latest image is not ready"
+
+          echo "Unable to find a ready dated release tag matching GHCR latest"
           exit 1
 
-      - name: Copy multi-platform image to Docker Hub
+      - name: Copy dated multi-platform image to Docker Hub
+        run: |
+          skopeo copy \
+            --all \
+            --retry-times 5 \
+            "docker://ghcr.io/sd87671067/go-emby:${{ steps.version.outputs.version }}" \
+            "docker://docker.io/macaemby/go-emby:${{ steps.version.outputs.version }}"
+
+      - name: Copy latest multi-platform image to Docker Hub
         run: |
           skopeo copy \
             --all \
@@ -59,7 +92,11 @@ jobs:
             docker://ghcr.io/sd87671067/go-emby:latest \
             docker://docker.io/macaemby/go-emby:latest
 
-      - name: Verify Docker Hub image
+      - name: Verify Docker Hub images
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          skopeo inspect --raw "docker://docker.io/macaemby/go-emby:${VERSION}" >/dev/null
           skopeo inspect --raw docker://docker.io/macaemby/go-emby:latest >/dev/null
-          echo "Synced successfully: macaemby/go-emby:latest"
+          echo "Synced successfully:"
+          echo "  macaemby/go-emby:${VERSION}"
+          echo "  macaemby/go-emby:latest"
