@@ -239,7 +239,7 @@ if [[ "${FIRST_INSTALL}" != "true" ]]; then
 fi
 
 echo
-echo "[7/7] 拉取 Docker Hub 镜像并启动..."
+echo "[7/7] 拉取 GitHub Container Registry 最新镜像并启动..."
 echo
 
 docker compose --env-file .env -f compose.yaml pull
