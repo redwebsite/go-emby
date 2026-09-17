@@ -7,6 +7,8 @@ INSTALL_DIR="/opt/go-emby"
 COMPOSE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/compose.yaml"
 ENV_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/.env.example"
 DEFAULT_PORT="8097"
+APP_UID="65532"
+APP_GID="65532"
 
 echo
 echo "============================================"
@@ -54,11 +56,33 @@ echo "✓ Docker Compose:"
 docker compose version
 
 echo
-echo "[3/7] 创建安装目录..."
-mkdir -p "${INSTALL_DIR}" "${INSTALL_DIR}/secrets"
+echo "[3/7] 创建安装目录并修复数据目录权限..."
+
+# go-emby 运行镜像固定使用 UID/GID 65532。
+# Docker 在 bind mount 源目录不存在时通常会以 root:root 创建目录，
+# 这会导致容器无法写入 /app/data 和 /app/backups。
+# 安装和升级时都显式创建并修正权限，避免不同实例首次部署后出现 EACCES。
+mkdir -p \
+    "${INSTALL_DIR}" \
+    "${INSTALL_DIR}/secrets" \
+    "${INSTALL_DIR}/app-data" \
+    "${INSTALL_DIR}/app-backups"
+
+chown -R "${APP_UID}:${APP_GID}" \
+    "${INSTALL_DIR}/app-data" \
+    "${INSTALL_DIR}/app-backups"
+
+chmod 750 \
+    "${INSTALL_DIR}/app-data" \
+    "${INSTALL_DIR}/app-backups"
+
 chmod 700 "${INSTALL_DIR}/secrets"
+
 cd "${INSTALL_DIR}"
+
 echo "✓ ${INSTALL_DIR}"
+echo "✓ app-data -> ${APP_UID}:${APP_GID}"
+echo "✓ app-backups -> ${APP_UID}:${APP_GID}"
 
 echo
 echo "[4/7] 下载最新部署配置..."
