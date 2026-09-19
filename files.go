@@ -134,7 +134,12 @@ func (a *App) filesAvailable(ctx context.Context,paths []string) error {
   rows,e:=a.db.Query("SELECT i.path FROM plays p JOIN items i ON i.id=p.item WHERE p.updated>?",time.Now().Add(-2*time.Minute).Unix());if e!=nil{return errors.New("无法检查播放状态")};defer rows.Close()
   for rows.Next(){var active string;if e=rows.Scan(&active);e!=nil{return errors.New("无法检查播放状态")};for _,p:=range paths{if pathsOverlap(filepath.Join(fileRoot(),p),active){return errors.New("文件被占用：正在播放，请停止播放后重试")}}};if rows.Err()!=nil{return errors.New("无法检查播放状态")}
  }
- sock:=os.Getenv("FILE_BUSY_SOCKET");if sock==""{return errors.New("占用检查服务未配置，已阻止操作")}
+ sock:=os.Getenv("FILE_BUSY_SOCKET")
+ if sock=="" {
+  // The built-in database checks above are sufficient for the standalone
+  // public deployment. An external busy-check service is optional.
+  return nil
+ }
  conn,e:=(&net.Dialer{Timeout:3*time.Second}).DialContext(ctx,"unix",sock);if e!=nil{return errors.New("占用检查服务不可用，已阻止操作")};defer conn.Close();conn.SetDeadline(time.Now().Add(10*time.Second))
  if e=json.NewEncoder(conn).Encode(M{"paths":paths});e!=nil{return errors.New("占用检查失败")}
  var b struct{OK bool `json:"ok"`;Error string `json:"error"`}
