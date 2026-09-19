@@ -27,12 +27,21 @@ fi
 echo "[1/7] 检查基础工具..."
 export DEBIAN_FRONTEND=noninteractive
 
-if ! command -v curl >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
+NEED_PACKAGES="false"
+for cmd in curl openssl python3 setfacl getfacl; do
+    if ! command -v "${cmd}" >/dev/null 2>&1; then
+        NEED_PACKAGES="true"
+        break
+    fi
+done
+
+if [[ "${NEED_PACKAGES}" == "true" ]]; then
     apt-get update
-    apt-get install -y curl ca-certificates openssl
+    apt-get install -y curl ca-certificates openssl python3 acl
 fi
 
 echo "✓ 基础工具正常"
+echo "✓ POSIX ACL 工具正常"
 
 echo
 echo "[2/7] 检查 Docker..."
@@ -154,12 +163,103 @@ if [[ -z "${ADMIN_PASSWORD}" ]]; then
     exit 1
 fi
 
-mkdir -p /vol1/1000/strm
-
 echo
-echo "[6/7] 检查 Docker Compose..."
+echo "[6/7] 检查 Docker Compose 并配置媒体目录 ACL..."
 docker compose --env-file .env -f compose.yaml config --quiet
 echo "✓ Compose 配置正确"
+
+COMPOSE_JSON="$(mktemp)"
+MEDIA_HOST_ROOTS_FILE="$(mktemp)"
+cleanup_acl_tmp() {
+    rm -f "${COMPOSE_JSON}" "${MEDIA_HOST_ROOTS_FILE}"
+}
+trap cleanup_acl_tmp EXIT
+
+docker compose --env-file .env -f compose.yaml config --format json > "${COMPOSE_JSON}"
+
+python3 - "${COMPOSE_JSON}" > "${MEDIA_HOST_ROOTS_FILE}" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fh:
+    data = json.load(fh)
+
+service = data.get("services", {}).get("go-emby", {})
+env = service.get("environment") or {}
+
+container_roots = []
+for key in ("MEDIA_ROOTS", "FILE_MANAGER_ROOT"):
+    value = env.get(key, "")
+    values = value if isinstance(value, list) else str(value).split(":")
+    for item in values:
+        item = str(item).strip()
+        if item.startswith("/"):
+            container_roots.append(os.path.normpath(item))
+
+seen = set()
+
+for volume in service.get("volumes") or []:
+    if not isinstance(volume, dict) or volume.get("type") != "bind":
+        continue
+
+    source = volume.get("source")
+    target = volume.get("target")
+    if not source or not target:
+        continue
+
+    source = os.path.normpath(source)
+    target = os.path.normpath(target)
+
+    host_paths = []
+    for root in container_roots:
+        if root == target:
+            host_paths.append(source)
+        elif root.startswith(target.rstrip("/") + "/"):
+            rel = os.path.relpath(root, target)
+            host_paths.append(os.path.normpath(os.path.join(source, rel)))
+        elif target.startswith(root.rstrip("/") + "/"):
+            host_paths.append(source)
+
+    for host in host_paths:
+        if host not in seen:
+            seen.add(host)
+            print(host)
+PY
+
+mapfile -t MEDIA_HOST_ROOTS < <(sed '/^[[:space:]]*$/d' "${MEDIA_HOST_ROOTS_FILE}")
+
+if [[ "${#MEDIA_HOST_ROOTS[@]}" -eq 0 ]]; then
+    echo
+    echo "错误：未能根据 compose.yaml 的 bind mount 与 MEDIA_ROOTS/FILE_MANAGER_ROOT 找到宿主机媒体目录。"
+    echo "请检查 compose.yaml volumes 与 .env 中的 MEDIA_ROOTS。"
+    exit 1
+fi
+
+echo "检测到宿主机媒体目录："
+printf '  %s\n' "${MEDIA_HOST_ROOTS[@]}"
+
+for media_root in "${MEDIA_HOST_ROOTS[@]}"; do
+    [[ -e "${media_root}" ]] || mkdir -p "${media_root}"
+
+    # 父目录只补 traverse，不改变 owner/group，也不做 chmod 777。
+    parent="$(dirname "${media_root}")"
+    while [[ "${parent}" != "/" && -n "${parent}" ]]; do
+        setfacl -m "u:${APP_UID}:--x" "${parent}"
+        next_parent="$(dirname "${parent}")"
+        [[ "${next_parent}" == "${parent}" ]] && break
+        parent="${next_parent}"
+    done
+
+    # 现有目录：UID 65532 rwx，并设置 default ACL 让以后新建内容继承。
+    find -P "${media_root}" -type d -exec         setfacl -m "u:${APP_UID}:rwx,d:u:${APP_UID}:rwx" {} +
+
+    # 现有文件：UID 65532 可读写。不会给普通文件增加 execute。
+    find -P "${media_root}" -type f -exec         setfacl -m "u:${APP_UID}:rw-" {} +
+done
+
+echo "✓ 媒体目录 ACL 已配置：UID ${APP_UID} rwX + default ACL"
+echo "✓ 未对媒体目录执行递归 chown/chmod/777"
 
 if [[ "${FIRST_INSTALL}" != "true" ]]; then
     echo
