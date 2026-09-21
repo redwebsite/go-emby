@@ -41,6 +41,10 @@ services:
     image: ghcr.io/sd87671067/go-emby:${IMAGE_TAG:-latest}
     restart: unless-stopped
 
+    # 默认以 root 身份运行，避免宿主机媒体目录由 root:root 创建时
+    # 无法写入 NFO、海报等刮削文件。需要降权时可在 .env 设置 PUID/PGID。
+    user: "${PUID:-0}:${PGID:-0}"
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,13 +67,7 @@ services:
 
       PUBLIC_URL: ${PUBLIC_URL:-}
 
-      PUBLIC_PLAYBACK_URL: ${PUBLIC_PLAYBACK_URL:-}
-
       BOOTSTRAP_API_KEY: ${BOOTSTRAP_API_KEY:-}
-
-      PROBE_PLAYBACK_URL: ${PROBE_PLAYBACK_URL:-}
-
-      LISTEN: :8097
 
       MEDIA_INFO_ROOT: /app/data
 
@@ -103,7 +101,9 @@ services:
       #   go-emby 容器内部路径
       #
       # rw：
-      #   读写挂载
+      #   读写挂载。默认 PUID=0 / PGID=0，可避免常见 root:root 755
+      #   媒体目录导致的 NFO、海报写入失败。
+      #   如需降权，请把 .env 的 PUID/PGID 改为媒体目录实际 UID/GID。
       #
       # 可以继续复制下面的格式添加更多目录。
       # ======================================================
